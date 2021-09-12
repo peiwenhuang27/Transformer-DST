@@ -1,11 +1,13 @@
 import sys
 from model import TransformerDST
+from transformers import BertTokenizer
 from pytorch_transformers import BertTokenizer, AdamW, WarmupLinearSchedule, BertConfig
-from utils.data_utils import prepare_dataset, MultiWozDataset
+from utils.data_utils import prepare_dataset, CrossWozDataset
 from utils.data_utils import make_slot_meta, domain2id, OP_SET, make_turn_label, postprocessing
 from utils.eval_utils import compute_prf, compute_acc, per_domain_join_accuracy
 from utils.ckpt_utils import download_ckpt, convert_ckpt_compatible
 from evaluation import model_evaluation
+from preprocessing.slot_meta import getSlotMeta
 
 import torch
 import torch.nn as nn
@@ -16,6 +18,7 @@ import random
 import os
 import json
 import time
+
 
 
 def masked_cross_entropy_for_value(logits, target, pad_idx=0):
@@ -71,6 +74,10 @@ def main(args):
 
     assert args.use_one_optim is True
 
+    if args.cuda_idx is not None:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_idx
+        print('CUDA VISIBLE DEVICES: ', os.environ['CUDA_VISIBLE_DEVICES'])
+
     if args.use_cls_only:
         args.no_dial = True
 
@@ -118,14 +125,17 @@ def main(args):
     if not os.path.exists(args.save_dir):
         os.mkdir(args.save_dir)
 
-    ontology = json.load(open(args.ontology_data))
-    slot_meta, ontology = make_slot_meta(ontology)
+    slot_meta = getSlotMeta()
+    print('### slot_meta ###')
+    print(slot_meta)
     op2id = OP_SET[args.op_code]
+    print('### op2id ###')
     print(op2id)
 
     tokenizer = BertTokenizer(args.vocab_path, do_lower_case=True)
 
     train_path = os.path.join(args.data_root, "train.pt")
+    op_w_path = os.path.join(args.data_root, "op_weight.npy")
     dev_path = os.path.join(args.data_root, "dev.pt")
     test_path = os.path.join(args.data_root, "test.pt")
 
@@ -143,23 +153,24 @@ def main(args):
     print("# test examples %d" % len(test_data_raw))
 
     if not os.path.exists(train_path):
-        train_data_raw = prepare_dataset(data_path=args.train_data_path,
+        train_data_raw, op_weights = prepare_dataset(data_path=args.train_data_path,
                                          tokenizer=tokenizer,
                                          slot_meta=slot_meta,
                                          n_history=args.n_history,
                                          max_seq_length=args.max_seq_length,
-                                         op_code=args.op_code)
+                                         op_code=args.op_code, training=True)
 
         torch.save(train_data_raw, train_path)
+        np.save(op_w_path, op_weights)
     else:
         train_data_raw = torch.load(train_path)
+        op_weights = np.load(op_w_path)
 
-    train_data = MultiWozDataset(train_data_raw,
+    train_data = CrossWozDataset(train_data_raw,
                                  tokenizer,
                                  slot_meta,
                                  args.max_seq_length,
                                  rng,
-                                 ontology,
                                  args.word_dropout,
                                  args.shuffle_state,
                                  args.shuffle_p, pad_id=tokenizer.convert_tokens_to_ids(['[PAD]'])[0],
@@ -199,6 +210,7 @@ def main(args):
                            tokenizer.convert_tokens_to_ids(['-'])[0],
                            type_vocab_size, args.exclude_domain)
 
+    ######################################
     if not os.path.exists(args.bert_ckpt_path):
         args.bert_ckpt_path = download_ckpt(args.bert_ckpt_path, args.bert_config_path, 'assets')
 
@@ -213,6 +225,7 @@ def main(args):
     model.bert.load_state_dict(state_dict)
     print("\n### Done Load BERT")
     sys.stdout.flush()
+    ######################################
 
     # re-initialize added special tokens ([SLOT], [NULL], [EOS])
     model.bert.embeddings.word_embeddings.weight.data[1].normal_(mean=0.0, std=0.02)
@@ -281,7 +294,16 @@ def main(args):
                                   num_workers=args.num_workers,
                                   worker_init_fn=worker_init_fn)
 
-    loss_fnc = nn.CrossEntropyLoss()
+    if args.use_class_weight:
+        print("### class weights for ops: {}".format(op_weights))
+        op_weights = torch.from_numpy(op_weights).type(torch.FloatTensor)
+        op_weights = op_weights.cuda()
+        loss_s_fnc = nn.CrossEntropyLoss(weight=op_weights)
+    else:
+        print("### no class weights applied")
+        loss_s_fnc = nn.CrossEntropyLoss()
+
+    loss_d_fnc = nn.BCEWithLogitsLoss()
     best_score = {'epoch': 0, 'joint_acc': 0, 'op_acc': 0, 'final_slot_f1': 0}
 
     start_time = time.time()
@@ -293,6 +315,7 @@ def main(args):
 
             batch = [b.to(device) if (not isinstance(b, int)) and (not isinstance(b, dict) and (not isinstance(b, list)) and (not isinstance(b, np.ndarray))) else b for b in batch]
 
+            # TODO: domain_ids for multi-domain
             input_ids_p, segment_ids_p, input_mask_p, \
             state_position_ids, op_ids, domain_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
             masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred = batch
@@ -306,7 +329,7 @@ def main(args):
             else:
                 loss_g = 0
 
-            loss_s = loss_fnc(state_scores.view(-1, len(op2id)), op_ids.view(-1))
+            loss_s = loss_s_fnc(state_scores.view(-1, len(op2id)), op_ids.view(-1))
 
             if args.only_pred_op:
                 loss = loss_s
@@ -314,7 +337,7 @@ def main(args):
                 loss = loss_s + loss_g
 
             if args.exclude_domain is not True:
-                loss_d = loss_fnc(domain_scores.view(-1, len(domain2id)), domain_ids.view(-1))
+                loss_d = loss_d_fnc(domain_scores.view(-1, len(domain2id)), domain_ids.view(-1))
                 loss = loss + loss_d
 
             batch_loss.append(loss.item())
@@ -397,17 +420,18 @@ if __name__ == "__main__":
     parser.add_argument("--use_one_optim", action='store_true')  # I use one optim
 
     parser.add_argument("--recover_e", default=0, type=int)
+    parser.add_argument("--cuda_idx", default=None, type=str)
 
     # Required parameters
-    parser.add_argument("--data_root", default='data/mwz2.1', type=str)
-    parser.add_argument("--train_data", default='train_dials.json', type=str)
-    parser.add_argument("--dev_data", default='dev_dials.json', type=str)
-    parser.add_argument("--test_data", default='test_dials.json', type=str)
-    parser.add_argument("--ontology_data", default='ontology.json', type=str)
+    parser.add_argument("--data_root", default='', type=str)
+    parser.add_argument("--train_data", default='cleanData/train_dials.json', type=str)
+    parser.add_argument("--dev_data", default='cleanData/dev_dials.json', type=str)
+    parser.add_argument("--test_data", default='cleanData/test_dials.json', type=str)
     parser.add_argument("--vocab_path", default='assets/vocab.txt', type=str)
-    parser.add_argument("--bert_config_path", default='./assets/bert_config_base_uncased.json', type=str)
-    parser.add_argument("--bert_ckpt_path", default='./assets/bert-base-uncased-pytorch_model.bin', type=str)
+    parser.add_argument("--bert_config_path", default='./assets/bert_config_base_chinese.json', type=str)
+    # parser.add_argument("--bert_ckpt_path", default='./assets/bert-base-chinese-pytorch_model.bin', type=str)
     parser.add_argument("--save_dir", default='outputs', type=str)
+    parser.add_argument("--use_class_weight", default=False, action='store_true')
 
     parser.add_argument("--random_seed", default=42, type=int)
     parser.add_argument("--num_workers", default=0, type=int)
@@ -449,7 +473,6 @@ if __name__ == "__main__":
     args.train_data_path = os.path.join(args.data_root, args.train_data)
     args.dev_data_path = os.path.join(args.data_root, args.dev_data)
     args.test_data_path = os.path.join(args.data_root, args.test_data)
-    args.ontology_data = os.path.join(args.data_root, args.ontology_data)
     args.shuffle_state = False if args.not_shuffle_state else True
     print('pytorch version: ', torch.__version__)
     print(args)
