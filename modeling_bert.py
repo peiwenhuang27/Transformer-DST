@@ -181,7 +181,7 @@ class BertConfig(PretrainedConfig):
     pretrained_config_archive_map = BERT_PRETRAINED_CONFIG_ARCHIVE_MAP
 
     def __init__(self,
-                 vocab_size_or_config_json_file=30522,
+                 vocab_size_or_config_json_file=21128,
                  hidden_size=768,
                  num_hidden_layers=12,
                  num_attention_heads=12,
@@ -244,6 +244,9 @@ class BertEmbeddings(nn.Module):
     """
     def __init__(self, config, type_vocab_size=None):
         super(BertEmbeddings, self).__init__()
+        # print("vocab", config.vocab_size)
+        # print("position", config.max_position_embeddings)
+        # print("hidden", config.hidden_size)
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
 
@@ -263,12 +266,13 @@ class BertEmbeddings(nn.Module):
             position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
-
+        # print("word", input_ids, "size", input_ids.size())
+        # print("position", position_ids, "size", position_ids.size())
         words_embeddings = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
-        embeddings = words_embeddings + position_embeddings + token_type_embeddings
+        embeddings = words_embeddings  + token_type_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -319,6 +323,7 @@ class BertSelfAttention(nn.Module):
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
 
         try:
+            attention_mask = attention_mask.type(torch.float32) # type of attention_mask must be float
             attention_scores = attention_scores + attention_mask
         except RuntimeError:
             print("---RuntimeError---")
