@@ -101,7 +101,6 @@ class TransformerDST(BertPreTrainedModel):
         if n_gpu == 2:  # id_n_map is for parallel training. nothing about model
             batch_size = input_ids_p.size(0)
             id_n_map = {}
-
             target_id = []  # could be a empty list
             if device == torch.device('cuda:0'):
                 for id, n in id_n_map_.items():
@@ -113,7 +112,6 @@ class TransformerDST(BertPreTrainedModel):
                     if id >= batch_size:
                         id_n_map[id-batch_size] = n
                         target_id.append(id)
-
             input_ids_g, segment_ids_g, position_ids_g, input_mask_g, masked_pos, masked_weights, lm_label_ids = [], [], [], [], [], [], []
             for id in target_id:
                 input_ids_g.append(input_ids_g_[id])
@@ -132,7 +130,7 @@ class TransformerDST(BertPreTrainedModel):
             input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
             masked_pos, masked_weights, lm_label_ids = self.wrap_into_tensor(input_ids_g_, segment_ids_g_, position_ids_g_, input_mask_g_,
                          masked_pos_, masked_weights_, lm_label_ids_, device)
-
+          
             id_n_map = id_n_map_
 
         # TODO: Encoder
@@ -719,4 +717,3 @@ class BertForSeq2SeqDecoder(nn.Module):
             output_ids.append(output_)
 
         return output_ids
-
