@@ -15,7 +15,9 @@ def per_domain_join_accuracy(data, slot_temp):
                 if set(pp) == set(gg):
                     jt += 1
                 temp_acc = compute_acc(set(gg), set(pp), slot_temp)
+                # print("temp_acc:", temp_acc, '\n')
                 acc += temp_acc
+        # print("jt:", jt, "count:", count, "jt/count:", jt / count, "acc:", acc, "acc/count:", acc / count)
         print(dom, jt / count, acc / count)
 
 

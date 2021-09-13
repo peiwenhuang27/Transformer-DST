@@ -7,17 +7,19 @@ import random
 import re
 from copy import deepcopy
 from .fix_label import fix_general_label_error
+from sklearn.utils.class_weight import compute_class_weight
 
 flatten = lambda x: [i for s in x for i in s]
-EXPERIMENT_DOMAINS = ["hotel", "train", "restaurant", "attraction", "taxi"]
+EXPERIMENT_DOMAINS = ["酒店", "景点", "餐馆", "地铁", "出租"]
 domain2id = {d: i for i, d in enumerate(EXPERIMENT_DOMAINS)}
 
 OP_SET = {
     '2': {'update': 0, 'carryover': 1},
     '3-1': {'update': 0, 'carryover': 1, 'dontcare': 2},
     '3-2': {'update': 0, 'carryover': 1, 'delete': 2},
-    '4': {'delete': 0, 'update': 1, 'dontcare': 2, 'carryover': 3},
-    '6': {'delete': 0, 'update': 1, 'dontcare': 2, 'carryover': 3, 'yes': 4, 'no': 5}
+    '4': {'delete': 0, 'update': 1, 'request': 2, 'carryover': 3},
+    '5': {'delete': 0, 'update': 1, 'request': 2, 'carryover': 3, 'yes': 4},
+    '6': {'delete': 0, 'update': 1, 'dontcare': 2, 'carryover': 3, 'yes': 4, 'no': 5},
 }
 
 
@@ -40,15 +42,16 @@ def make_turn_label(slot_meta, last_dialog_state, turn_dialog_state,
             turn_dialog_state.pop(k)
             continue
         vv = last_dialog_state.get(k)
+
         try:
             idx = slot_meta.index(k)
             if vv != v:
-                if v == 'dontcare' and OP_SET[op_code].get('dontcare') is not None:
-                    op_labels[idx] = 'dontcare'
+                if v == 'request' and OP_SET[op_code].get('request') is not None:
+                    op_labels[idx] = 'request'
                 elif v == 'yes' and OP_SET[op_code].get('yes') is not None:
                     op_labels[idx] = 'yes'
-                elif v == 'no' and OP_SET[op_code].get('no') is not None:
-                    op_labels[idx] = 'no'
+                # elif v == 'no' and OP_SET[op_code].get('no') is not None:
+                #     op_labels[idx] = 'no'  
                 else:
                     op_labels[idx] = 'update'
                     generate_y.append([tokenizer.tokenize(v) + ['[EOS]'], idx])
@@ -78,7 +81,6 @@ def make_turn_label(slot_meta, last_dialog_state, turn_dialog_state,
         op2id = OP_SET[op_code]
         generate_y = [tokenizer.convert_tokens_to_ids(y) for y in generate_y]
         op_labels = [op2id[i] for i in op_labels]
-
     return op_labels, generate_y, gold_state
 
 
@@ -88,12 +90,12 @@ def postprocessing(slot_meta, ops, last_dialog_state,
     gid = 0
 
     for st, op in zip(slot_meta, ops):
-        if op == 'dontcare' and OP_SET[op_code].get('dontcare') is not None:
-            last_dialog_state[st] = 'dontcare'
+        if op == 'request' and OP_SET[op_code].get('request') is not None:
+            last_dialog_state[st] = 'request'
         elif op == 'yes' and OP_SET[op_code].get('yes') is not None:
             last_dialog_state[st] = 'yes'
-        elif op == 'no' and OP_SET[op_code].get('no') is not None:
-            last_dialog_state[st] = 'no'
+        # elif op == 'no' and OP_SET[op_code].get('no') is not None:
+        #     last_dialog_state[st] = 'no'
         elif op == 'delete' and last_dialog_state.get(st) and OP_SET[op_code].get('delete') is not None:
             last_dialog_state.pop(st)
         elif op == 'update':
@@ -103,10 +105,10 @@ def postprocessing(slot_meta, ops, last_dialog_state,
                 if gg == '[EOS]':
                     break
                 gen.append(gg)
-            gen = ' '.join(gen).replace(' ##', '')
+            gen = ''.join(gen).replace(' ##', '')
             gid += 1
             gen = gen.replace(' : ', ':').replace('##', '')
-            if gold_gen and gold_gen.get(st) and gold_gen[st] not in ['dontcare']:
+            if gold_gen and gold_gen.get(st) and gold_gen[st] not in ['request']:
                 gen = gold_gen[st]
 
             if gen == '[NULL]' and last_dialog_state.get(st) and not OP_SET[op_code].get('delete') is not None:
@@ -137,7 +139,7 @@ def make_slot_meta(ontology):
 
 
 def prepare_dataset(data_path, tokenizer, slot_meta,
-                    n_history, max_seq_length, diag_level=False, op_code='4'):
+                    n_history, max_seq_length, diag_level=False, op_code='4', training=False):
     dials = json.load(open(data_path))
     data = []
     domain_counter = {}
@@ -145,6 +147,9 @@ def prepare_dataset(data_path, tokenizer, slot_meta,
     max_line = None
 
     c = 0
+    # TODO: count op frequency for class weight computation
+    op_class_weight = []
+    op2id = OP_SET[op_code]
 
     for i, dial_dict in enumerate(dials):
         if (i+1) % 200 == 0:
@@ -162,18 +167,21 @@ def prepare_dataset(data_path, tokenizer, slot_meta,
         last_dialog_state = {}
         last_uttr = ""
         for ti, turn in enumerate(dial_dict["dialogue"]):
-            turn_domain = turn["domain"]
-            if turn_domain not in EXPERIMENT_DOMAINS:
+            turn_domain = []
+            if len(turn["domain"]) == 0: # not in EXPERIMENT_DOMAINS
                 continue
+            else:
+                turn_domain = turn["domain"] # list of domains
             turn_id = turn["turn_idx"]
             turn_uttr = (turn["system_transcript"] + ' ; ' + turn["transcript"]).strip()
             dialog_history.append(last_uttr)
             turn_dialog_state = fix_general_label_error(turn["belief_state"], False, slot_meta)
             last_uttr = turn_uttr
-
             op_labels, generate_y, gold_state = make_turn_label(slot_meta, last_dialog_state,
                                                                 turn_dialog_state,
                                                                 tokenizer, op_code)
+           
+            op_class_weight += op_labels
 
             if (ti + 1) == len(dial_dict["dialogue"]):
                 is_last_turn = True
@@ -185,6 +193,23 @@ def prepare_dataset(data_path, tokenizer, slot_meta,
 
             slot_id = tokenizer.convert_tokens_to_ids(['[SLOT]'])[0]
             mask_id = tokenizer.convert_tokens_to_ids(['[MASK]'])[0]
+            
+            ###
+            # if len(turn_domain) > 1 and c < 15:
+            #   print('turn_domain: ', turn_domain)
+            #   print('turn_uttr: ', turn_uttr)
+            #   print('dial_his: ', dial_his)
+            #   print('last_dialog_state: ', last_dialog_state)
+            #   print('op_labels: ', op_labels)
+            #   print('generate_y: ', generate_y)
+            #   print('gold_state: ', gold_state)
+            #   print('max_seq_length: ', max_seq_length)
+            #   print('slot_meta: ', slot_meta)
+            #   print('\n\n')
+            #   c += 1
+
+            ###
+
 
             instance = TrainingInstance(dial_dict["dialogue_idx"], turn_domain,
                                         turn_id, turn_uttr, dial_his,
@@ -195,10 +220,18 @@ def prepare_dataset(data_path, tokenizer, slot_meta,
             instance.make_instance(tokenizer)
             data.append(instance)
 
-            c += 1
+
 
             last_dialog_state = turn_dialog_state
 
+    classes = np.arange(len(op2id))
+    op_class_weight = np.asarray([op2id[op] for op in op_class_weight])
+    
+    op_weights = compute_class_weight(class_weight='balanced', classes=classes, y=op_class_weight)
+    print('op_weights: ', op_weights)
+
+    if training:
+        return data, op_weights
     return data
 
 
@@ -263,10 +296,11 @@ class TrainingInstance:
         """
         TODO: Do not wrap into Tensor at this step. (Some errors might occur)
         """
+
         if max_seq_length is None:
             max_seq_length = self.max_seq_length
-
-        self.domain_id = domain2id[self.turn_domain]
+        # self.domain_id = domain2id[self.turn_domain]
+        self.domain_id = [domain2id[aDomain] for aDomain in self.turn_domain]
         self.op_ids = [self.op2id[a] for a in self.op_labels]
 
         # TODO: For generator
@@ -364,10 +398,17 @@ class TrainingInstance:
         self.diag_len = len(diag)
 
         # FullBert
+        tmp = diag + state
         self.input_id_p = tokenizer.convert_tokens_to_ids(diag + state)  # For predictor
         self.input_id_p_len = len(self.input_id_p)
         self.segment_id_p = [0] * len(diag_1) + [1] * len(diag_2) + [2] * len(state)
         # position_ids_p: will be automatically created in model
+        
+        ### TEST
+        # print('### state ###')
+        # print('len: ', len(state))
+        # print(state)
+        # print('\n\n')
 
         # self.input_id_g, finished
         self.segment_id_g = [[3]*len(input_id_g) for input_id_g in self.input_id_g]
@@ -394,10 +435,9 @@ class TrainingInstance:
         # TODO: Since I do padding later, I can only get these later:
         #   slot_position & input_mask, ...
 
-
-class MultiWozDataset(Dataset):
+class CrossWozDataset(Dataset):
     def __init__(self, data, tokenizer, slot_meta, max_seq_length, rng,
-                 ontology, word_dropout=0.1, shuffle_state=False, shuffle_p=0.5,
+                 word_dropout=0.1, shuffle_state=False, shuffle_p=0.5,
                  decoder_teacher_forcing=0.5, pad_id=0, slot_id=1,
                  use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False):
 
@@ -405,13 +445,11 @@ class MultiWozDataset(Dataset):
         self.use_dt_only = use_dt_only
         self.no_dial = no_dial
         self.use_cls_only = use_cls_only
-
         self.data = data
         self.len = len(data)
         self.tokenizer = tokenizer
         self.slot_meta = slot_meta
         self.max_seq_length = max_seq_length
-        self.ontology = ontology
         self.word_dropout = word_dropout
         self.shuffle_state = shuffle_state
         self.shuffle_p = shuffle_p
@@ -547,7 +585,7 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
     input_mask_p = torch.tensor([get_bi_attn_mask(f.input_id_p_len, input_id_p_max_len) for f in batch], dtype=torch.long)
 
     op_ids = torch.tensor([f.op_ids for f in batch], dtype=torch.long)
-    domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
+    # domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
 
     slot_position = []
     slot_to_update = []  # TODO: v2 special, a nested list
@@ -578,7 +616,20 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
         # print("pos, ", pos)
         # print("to_update, ", to_update)
 
-    state_position_ids = torch.tensor(slot_position, dtype=torch.long)
+    # TEST
+    # possible cause: different length?
+    try:
+        state_position_ids = torch.tensor(slot_position, dtype=torch.long)
+    except:
+        print('ValueError: expected sequence of length 59 at dim 1 (got 63)')
+        print('slot_position: ')
+        print(len(slot_position))
+        for i in range(len(slot_position)):
+          print(len(slot_position[i]))
+        # print('slot_position shape: ', slot_position.shape)
+        # print('slot_position_ids: ', slot_position_ids)
+        exit()
+    # ENDOF TEST
 
     # TODO: Generator
     input_ids_g, segment_ids_g, position_ids_g = [], [], []
@@ -643,5 +694,5 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
     # lm_label_ids = torch.tensor(lm_label_ids, dtype=torch.long)
 
     return input_ids_p, segment_ids_p, input_mask_p, \
-           state_position_ids, op_ids, domain_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
+           state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
            masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred
