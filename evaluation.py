@@ -1,4 +1,4 @@
-from utils.data_utils import prepare_dataset, MultiWozDataset, wrap_into_tensor
+from utils.data_utils import prepare_dataset,CrossWozDataset, wrap_into_tensor
 from utils.data_utils import make_slot_meta, domain2id, OP_SET, make_turn_label, postprocessing
 from utils.eval_utils import compute_prf, compute_acc, per_domain_join_accuracy
 from pytorch_transformers import BertTokenizer, BertConfig
@@ -18,26 +18,50 @@ import argparse
 import json
 from copy import deepcopy
 
+from utils.slot_meta import getSlotMeta
 
 
 def main(args):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if args.cuda_idx is not None:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_idx
+        print('CUDA VISIBLE DEVICES: ', os.environ['CUDA_VISIBLE_DEVICES'])
 
-    ontology = json.load(open(os.path.join(args.data_root, args.ontology_data)))
-    slot_meta, _ = make_slot_meta(ontology)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    n_gpu = torch.cuda.device_count()
+    print('CUDA DEVICE COUNT: ', n_gpu)
+
+    # ontology = json.load(open(os.path.join(args.data_root, args.ontology_data)))
+    # slot_meta, _ = make_slot_meta(ontology)
+    slot_meta = getSlotMeta()
     tokenizer = BertTokenizer(args.vocab_path, do_lower_case=True)
-    data = prepare_dataset(os.path.join(args.data_root, args.test_data),
-                           tokenizer,
-                           slot_meta, args.n_history, args.max_seq_length, args.op_code)
+    test_path = os.path.join(args.data_root, "test.pt")
+    if not os.path.exists(test_path):
+        data = prepare_dataset(os.path.join(args.data_root, args.test_data), tokenizer, slot_meta, 
+                               args.n_history, args.max_seq_length, args.op_code)
+    else:
+        data = torch.load(test_path)
+    # data = prepare_dataset(os.path.join(args.data_root, args.test_data),
+    #                        tokenizer,
+    #                        slot_meta, args.n_history, args.max_seq_length, args.op_code)
 
     model_config = BertConfig.from_json_file(args.bert_config_path)
     model_config.dropout = 0.1
     op2id = OP_SET[args.op_code]
-    model = TransformerDST(model_config, len(op2id), len(domain2id), op2id['update'])
+    # model = TransformerDST(model_config, len(op2id), len(domain2id), op2id['update'])
+    dec_config = args
+    type_vocab_size = 4
+    model = TransformerDST(model_config, dec_config, len(op2id), len(domain2id),
+                           op2id['update'],
+                           tokenizer.convert_tokens_to_ids(['[MASK]'])[0],
+                           tokenizer.convert_tokens_to_ids(['[SEP]'])[0],
+                           tokenizer.convert_tokens_to_ids(['[PAD]'])[0],
+                           tokenizer.convert_tokens_to_ids(['-'])[0],
+                           type_vocab_size, False)
     ckpt = torch.load(args.model_ckpt_path, map_location='cpu')
-    model.load_state_dict(ckpt)
-
+    model.load_state_dict(ckpt, strict=False)
     model.eval()
+
     model.to(device)
 
     if args.eval_all:
@@ -63,7 +87,7 @@ def main(args):
 
 
 def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
-                     is_gt_op=False, is_gt_p_state=False, is_gt_gen=False, use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False, n_gpu=0):
+                     is_gt_op=False, is_gt_p_state=False, is_gt_gen=False, use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False, n_gpu=1):
 
     device = torch.device('cuda' if n_gpu else 'cpu')
 
@@ -84,6 +108,9 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
     results = {}
     last_dialog_state = {}
     wall_times = []
+
+    # TEST
+    gold_ops_tmp = []
 
     start_time = time.time()
     for di, i in enumerate(test_data):
@@ -148,16 +175,24 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
             pred_ops = [id2op[a] for a in op_ids.tolist()]
         gold_ops = [id2op[a] for a in d_gold_op]
 
+        # TEST
+        gold_ops_tmp += gold_ops
+        #
+
         if is_gt_gen:
             # ground_truth generation
             gold_gen = {'-'.join(ii.split('-')[:2]): ii.split('-')[-1] for ii in i.gold_state}
         else:
             gold_gen = {}
 
+        # print("generated:", generated)
+        # print("last_dialog_state:", last_dialog_state)
+
+
         generated, last_dialog_state = postprocessing(slot_meta, pred_ops, last_dialog_state,
                                                       generated, tokenizer, op_code, gold_gen)
 
-        # print(last_dialog_state)
+
 
         end = time.perf_counter()
         wall_times.append(end - start)
@@ -201,6 +236,13 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
                 fn_dic[g] += 1
                 fp_dic[p] += 1
 
+    # TEST
+    from collections import Counter
+    gold_ops_cnt = Counter(gold_ops_tmp)
+    print("gold_ops_cnt: ", gold_ops_cnt)
+    print("fn_dic: ", fn_dic)
+    print("fp_dic: ", fp_dic)
+    #
     joint_acc_score = joint_acc / len(test_data)
     turn_acc_score = slot_turn_acc / len(test_data)
     slot_F1_score = slot_F1_pred / slot_F1_count
@@ -244,20 +286,32 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_root", default='data/mwz2.1', type=str)
-    parser.add_argument("--test_data", default='test_dials.json', type=str)
-    parser.add_argument("--ontology_data", default='ontology.json', type=str)
+    parser.add_argument("--data_root", default='', type=str)
+    parser.add_argument("--test_data", default='cleanData/test_dials.json', type=str)
+    # parser.add_argument("--ontology_data", default='ontology.json', type=str)
     parser.add_argument("--vocab_path", default='assets/vocab.txt', type=str)
-    parser.add_argument("--bert_config_path", default='assets/bert_config_base_uncased.json', type=str)
-    parser.add_argument("--model_ckpt_path", default='outputs/model_best.bin', type=str)
+    parser.add_argument("--bert_config_path", default='assets/bert_config_base_chinese.json', type=str)
+    parser.add_argument("--model_ckpt_path", default='outputs/dt_e15_b16/model.e7.bin', type=str)
     parser.add_argument("--n_history", default=1, type=int)
     parser.add_argument("--max_seq_length", default=256, type=int)
     parser.add_argument("--op_code", default="4", type=str)
+    parser.add_argument("--cuda_idx", default=None, type=str)
 
     parser.add_argument("--gt_op", default=False, action='store_true')
     parser.add_argument("--gt_p_state", default=False, action='store_true')
     parser.add_argument("--gt_gen", default=False, action='store_true')
     parser.add_argument("--eval_all", default=False, action='store_true')
+
+    # generator
+    parser.add_argument('--beam_size', type=int, default=1,
+                        help="Beam size for searching")
+    parser.add_argument("--min_len", default=1, type=int)
+    parser.add_argument('--length_penalty', type=float, default=0,
+                        help="Length penalty for beam search")
+    parser.add_argument('--forbid_duplicate_ngrams', action='store_true')
+    parser.add_argument('--forbid_ignore_word', type=str, default=None,
+                        help="Ignore the word during forbid_duplicate_ngrams")
+    parser.add_argument('--ngram_size', type=int, default=2)
 
     args = parser.parse_args()
     main(args)
