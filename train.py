@@ -6,8 +6,8 @@ from utils.data_utils import prepare_dataset, CrossWozDataset
 from utils.data_utils import make_slot_meta, domain2id, OP_SET, make_turn_label, postprocessing
 from utils.eval_utils import compute_prf, compute_acc, per_domain_join_accuracy
 from utils.ckpt_utils import download_ckpt, convert_ckpt_compatible
+from utils.slot_meta import getSlotMeta
 from evaluation import model_evaluation
-from preprocessing.slot_meta import getSlotMeta
 
 import torch
 import torch.nn as nn

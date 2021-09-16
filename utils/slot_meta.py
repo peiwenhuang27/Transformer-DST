@@ -161,4 +161,4 @@ def getSlotMeta():
       if '酒店设施' not in da_list[2]:
         usr_da_slot.append(da_list[1] + '-' + da_list[2].replace('-', '~'))
         # usr_da_slot.append(da_list[1] + '-' + da_list[2].replace('-', '~'))
-  return list(set(slot_meta + usr_da_slot + state_meta))
+  return list(set(slot_meta + state_meta))
