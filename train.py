@@ -18,6 +18,7 @@ import random
 import os
 import json
 import time
+import wandb
 
 
 
@@ -73,6 +74,11 @@ def load(args, epoch):
 def main(args):
 
     assert args.use_one_optim is True
+
+    wandb.login()
+    run = wandb.init(project="Transformer-DST", 
+                     job_type="model training",
+                     config=args)
 
     if args.cuda_idx is not None:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_idx
@@ -366,11 +372,18 @@ def main(args):
                           % ((time.time()-start_time)/60, epoch+1, args.n_epochs, step,
                              len(train_dataloader), np.mean(batch_loss),
                              loss_s.item(), loss_g, loss_d.item()))
+                    wandb.log({"mean_loss": np.mean(batch_loss),
+                                "state_loss": loss_s.item(),
+                                "gen_loss": loss_g,
+                                "dom_loss": loss_d.item()})
                 else:
                     print("time %.1f min, [%d/%d] [%d/%d] mean_loss : %.3f, state_loss : %.3f, gen_loss : %.3f" \
                           % ((time.time()-start_time)/60, epoch+1, args.n_epochs, step,
                              len(train_dataloader), np.mean(batch_loss),
                              loss_s.item(), loss_g))
+                    wandb.log({"mean_loss": np.mean(batch_loss),
+                            "state_loss": loss_s.item(),
+                            "gen_loss": loss_g})
 
                 sys.stdout.flush()
                 batch_loss = []
