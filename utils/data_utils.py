@@ -220,17 +220,13 @@ def prepare_dataset(data_path, tokenizer, slot_meta,
             instance.make_instance(tokenizer)
             data.append(instance)
 
-
-
             last_dialog_state = turn_dialog_state
 
-    classes = np.arange(len(op2id))
-    op_class_weight = np.asarray([op2id[op] for op in op_class_weight])
-    
-    op_weights = compute_class_weight(class_weight='balanced', classes=classes, y=op_class_weight)
-    print('op_weights: ', op_weights)
-
     if training:
+        classes = np.arange(len(op2id))
+        op_class_weight = np.asarray([op2id[op] for op in op_class_weight])
+        op_weights = compute_class_weight(class_weight='balanced', classes=classes, y=op_class_weight)
+        print('op_weights: ', op_weights)
         return data, op_weights
     return data
 
