@@ -161,13 +161,15 @@ def main(args):
     dev_dials = create_dials(data_dev)
 
     
-    print(os.path.join(args.save_dir, '/train_dials.json'))
-    with open(os.path.join(args.save_dir, '/train_dials.json'), 'w', encoding='utf-8') as fp:
+    with open(os.path.join(args.save_dir, 'train_dials.json'), 'w', encoding='utf-8') as fp:
         json.dump(train_dials, fp, ensure_ascii=False, indent=4)
-    with open(os.path.join(args.save_dir, '/test_dials.json'), 'w', encoding='utf-8') as fp:
+    print(os.path.join(args.save_dir, 'train_dials.json'))
+    with open(os.path.join(args.save_dir, 'test_dials.json'), 'w', encoding='utf-8') as fp:
         json.dump(test_dials, fp, ensure_ascii=False, indent=4)
-    with open(os.path.join(args.save_dir, '/dev_dials.json'), 'w', encoding='utf-8') as fp:
+    print(os.path.join(args.save_dir, 'test_dials.json'))
+    with open(os.path.join(args.save_dir, 'dev_dials.json'), 'w', encoding='utf-8') as fp:
         json.dump(dev_dials, fp, ensure_ascii=False, indent=4)
+    print(os.path.join(args.save_dir, 'dev_dials.json'))
 
 
 
