@@ -317,8 +317,8 @@ def main(args):
 
             # TODO: domain_ids for multi-domain
             input_ids_p, segment_ids_p, input_mask_p, \
-            state_position_ids, op_ids, domain_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
-            masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred = batch
+            state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
+            masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred, domain_ids = batch
 
             domain_scores, state_scores, loss_g = model(input_ids_p, segment_ids_p, input_mask_p, state_position_ids,
                 input_ids_g, segment_ids_g, position_ids_g, input_mask_g,

@@ -581,7 +581,8 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
     input_mask_p = torch.tensor([get_bi_attn_mask(f.input_id_p_len, input_id_p_max_len) for f in batch], dtype=torch.long)
 
     op_ids = torch.tensor([f.op_ids for f in batch], dtype=torch.long)
-    # domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
+    ## TODO: domain_ids needs padding?
+    domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
 
     slot_position = []
     slot_to_update = []  # TODO: v2 special, a nested list
@@ -691,4 +692,4 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
 
     return input_ids_p, segment_ids_p, input_mask_p, \
            state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
-           masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred
+           masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred, domain_ids
