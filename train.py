@@ -77,6 +77,7 @@ def main(args):
 
     wandb.login()
     run = wandb.init(project="Transformer-DST", 
+                     entity="weilao_research",
                      job_type="model training",
                      config=args)
 
