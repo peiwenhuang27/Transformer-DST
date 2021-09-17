@@ -143,21 +143,6 @@ def main(args):
 
     train_path = os.path.join(args.data_root, "train.pt")
     op_w_path = os.path.join(args.data_root, "op_weight.npy")
-    dev_path = os.path.join(args.data_root, "dev.pt")
-    test_path = os.path.join(args.data_root, "test.pt")
-
-    if not os.path.exists(test_path):
-        test_data_raw = prepare_dataset(data_path=args.test_data_path,
-                                        tokenizer=tokenizer,
-                                        slot_meta=slot_meta,
-                                        n_history=args.n_history,
-                                        max_seq_length=args.max_seq_length,
-                                        op_code=args.op_code)
-        torch.save(test_data_raw, test_path)
-    else:
-        test_data_raw = torch.load(test_path)
-
-    print("# test examples %d" % len(test_data_raw))
 
     if not os.path.exists(train_path):
         train_data_raw, op_weights = prepare_dataset(data_path=args.train_data_path,
@@ -189,18 +174,18 @@ def main(args):
 
     print("# train examples %d" % len(train_data_raw))
 
-    if not os.path.exists(dev_path):
-        dev_data_raw = prepare_dataset(data_path=args.dev_data_path,
-                                       tokenizer=tokenizer,
-                                       slot_meta=slot_meta,
-                                       n_history=args.n_history,
-                                       max_seq_length=args.max_seq_length,
-                                       op_code=args.op_code)
-        torch.save(dev_data_raw,  dev_path)
-    else:
-        dev_data_raw = torch.load(dev_path)
+    # if not os.path.exists(dev_path):
+    #     dev_data_raw = prepare_dataset(data_path=args.dev_data_path,
+    #                                    tokenizer=tokenizer,
+    #                                    slot_meta=slot_meta,
+    #                                    n_history=args.n_history,
+    #                                    max_seq_length=args.max_seq_length,
+    #                                    op_code=args.op_code)
+    #     torch.save(dev_data_raw,  dev_path)
+    # else:
+    #     dev_data_raw = torch.load(dev_path)
 
-    print("# dev examples %d" % len(dev_data_raw))
+    # print("# dev examples %d" % len(dev_data_raw))
 
     model_config = BertConfig.from_json_file(args.bert_config_path)
     model_config.dropout = args.dropout

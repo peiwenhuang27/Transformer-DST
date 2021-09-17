@@ -41,9 +41,6 @@ def main(args):
                                args.n_history, args.max_seq_length, args.op_code)
     else:
         data = torch.load(test_path)
-    # data = prepare_dataset(os.path.join(args.data_root, args.test_data),
-    #                        tokenizer,
-    #                        slot_meta, args.n_history, args.max_seq_length, args.op_code)
 
     model_config = BertConfig.from_json_file(args.bert_config_path)
     model_config.dropout = 0.1
