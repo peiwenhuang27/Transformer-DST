@@ -435,7 +435,7 @@ class CrossWozDataset(Dataset):
     def __init__(self, data, tokenizer, slot_meta, max_seq_length, rng,
                  word_dropout=0.1, shuffle_state=False, shuffle_p=0.5,
                  decoder_teacher_forcing=0.5, pad_id=0, slot_id=1,
-                 use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False):
+                 use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False, exclude_domain=False):
 
         self.use_full_slot = use_full_slot
         self.use_dt_only = use_dt_only
@@ -450,6 +450,7 @@ class CrossWozDataset(Dataset):
         self.shuffle_state = shuffle_state
         self.shuffle_p = shuffle_p
         self.rng = rng
+        self.exclude_domain = exclude_domain
 
         # For teacher forcing
         if decoder_teacher_forcing < 1.0:
@@ -482,7 +483,7 @@ class CrossWozDataset(Dataset):
         """
         return wrap_into_tensor(batch, pad_id=self.pad_id, slot_id=self.slot_id, use_teacher=True,
                                 use_full_slot=self.use_full_slot, use_dt_only=self.use_dt_only, no_dial=self.no_dial,
-                                use_cls_only=self.use_cls_only)
+                                use_cls_only=self.use_cls_only, exclude_domain=self.exclude_domain)
 
 
 def do_pad(x, batch_max_len, pad_val):
@@ -559,7 +560,7 @@ def get_seq_attn_mask(inp_p_len, input_id_g, max_p_len, max_g_len, slot_to_updat
     return res
 
 
-def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False):
+def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False, exclude_domain=False):
     """
     For generator, two training samples might have different n_updates. Thus, we stack tensors in order.
 
@@ -582,7 +583,8 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
 
     op_ids = torch.tensor([f.op_ids for f in batch], dtype=torch.long)
     ## TODO: domain_ids needs padding?
-    domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
+    if not exclude_domain:
+        domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
 
     slot_position = []
     slot_to_update = []  # TODO: v2 special, a nested list
@@ -689,7 +691,12 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
         lm_label_ids.append(i_lm_label_ids)
 
     # lm_label_ids = torch.tensor(lm_label_ids, dtype=torch.long)
+    if not exclude_domain:
+        return input_ids_p, segment_ids_p, input_mask_p, \
+            state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
+            masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred, domain_ids
+    else:
+        return input_ids_p, segment_ids_p, input_mask_p, \
+            state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
+            masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred
 
-    return input_ids_p, segment_ids_p, input_mask_p, \
-           state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
-           masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred, domain_ids

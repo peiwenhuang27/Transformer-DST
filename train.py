@@ -185,7 +185,7 @@ def main(args):
                                  decoder_teacher_forcing=args.decoder_teacher_forcing,
                                  use_full_slot=args.use_full_slot,
                                  use_dt_only=args.use_dt_only, no_dial=args.no_dial,
-                                 use_cls_only=args.use_cls_only)
+                                 use_cls_only=args.use_cls_only, exclude_domain=args.exclude_domain)
 
     print("# train examples %d" % len(train_data_raw))
 
@@ -323,9 +323,14 @@ def main(args):
             batch = [b.to(device) if (not isinstance(b, int)) and (not isinstance(b, dict) and (not isinstance(b, list)) and (not isinstance(b, np.ndarray))) else b for b in batch]
 
             # TODO: domain_ids for multi-domain
-            input_ids_p, segment_ids_p, input_mask_p, \
-            state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
-            masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred, domain_ids = batch
+            if not args.exclude_domain:
+                input_ids_p, segment_ids_p, input_mask_p, \
+                state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
+                masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred, domain_ids = batch
+            else:
+                input_ids_p, segment_ids_p, input_mask_p, \
+                state_position_ids, op_ids, input_ids_g, segment_ids_g, position_ids_g, input_mask_g, \
+                masked_pos, masked_weights, lm_label_ids, id_n_map, gen_max_len, n_total_pred = batch
 
             domain_scores, state_scores, loss_g = model(input_ids_p, segment_ids_p, input_mask_p, state_position_ids,
                 input_ids_g, segment_ids_g, position_ids_g, input_mask_g,
@@ -343,7 +348,7 @@ def main(args):
             else:
                 loss = loss_s + loss_g
 
-            if args.exclude_domain is not True:
+            if not args.exclude_domain:
                 loss_d = loss_d_fnc(domain_scores.view(-1, len(domain2id)), domain_ids.view(-1))
                 loss = loss + loss_d
 
