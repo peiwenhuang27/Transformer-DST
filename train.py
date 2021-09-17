@@ -443,7 +443,7 @@ if __name__ == "__main__":
     parser.add_argument("--test_data", default='cleanData/test_dials.json', type=str)
     parser.add_argument("--vocab_path", default='assets/vocab.txt', type=str)
     parser.add_argument("--bert_config_path", default='./assets/bert_config_base_chinese.json', type=str)
-    # parser.add_argument("--bert_ckpt_path", default='./assets/bert-base-chinese-pytorch_model.bin', type=str)
+    parser.add_argument("--bert_ckpt_path", default='./assets/bert-base-chinese-pytorch_model.bin', type=str)
     parser.add_argument("--save_dir", default='outputs', type=str)
     parser.add_argument("--use_class_weight", default=False, action='store_true')
 
