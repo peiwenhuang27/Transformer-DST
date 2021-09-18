@@ -295,8 +295,7 @@ class TrainingInstance:
 
         if max_seq_length is None:
             max_seq_length = self.max_seq_length
-        # self.domain_id = domain2id[self.turn_domain]
-        self.domain_id = [domain2id[aDomain] for aDomain in self.turn_domain]
+        self.domain_id = [domain2id[d] for d in self.turn_domain]
         self.op_ids = [self.op2id[a] for a in self.op_labels]
 
         # TODO: For generator
@@ -559,6 +558,12 @@ def get_seq_attn_mask(inp_p_len, input_id_g, max_p_len, max_g_len, slot_to_updat
 
     return res
 
+def convert_to_one_hot(ids, dim):
+    vec = [0] * dim
+    for i in ids:
+        vec[i] = 1
+    return vec
+
 
 def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot=False, use_dt_only=False, no_dial=False, use_cls_only=False, exclude_domain=False):
     """
@@ -575,6 +580,7 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
     input_id_p_max_len = max([f.input_id_p_len for f in batch])
     input_id_g_max_len = max([f.input_id_g_max_len for f in batch])
     gen_max_len = max([f.gen_max_len for f in batch])
+    domain_len = len(batch[0].op2id)
 
     # TODO: Predictor
     input_ids_p = torch.tensor([do_pad(f.input_id_p, input_id_p_max_len, pad_id) for f in batch], dtype=torch.long)
@@ -582,9 +588,8 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
     input_mask_p = torch.tensor([get_bi_attn_mask(f.input_id_p_len, input_id_p_max_len) for f in batch], dtype=torch.long)
 
     op_ids = torch.tensor([f.op_ids for f in batch], dtype=torch.long)
-    ## TODO: domain_ids needs padding?
     if not exclude_domain:
-        domain_ids = torch.tensor([f.domain_id for f in batch], dtype=torch.long)
+        domain_ids = torch.tensor([convert_to_one_hot(f.domain_id, domain_len) for f in batch], dtype=torch.long)
 
     slot_position = []
     slot_to_update = []  # TODO: v2 special, a nested list

@@ -334,7 +334,7 @@ def main(args):
                 loss = loss_s + loss_g
 
             if not args.exclude_domain:
-                loss_d = loss_d_fnc(domain_scores.view(-1, len(domain2id)), domain_ids.view(-1))
+                loss_d = loss_d_fnc(domain_scores.view(-1, len(domain2id)), domain_ids)
                 loss = loss + loss_d
 
             batch_loss.append(loss.item())
