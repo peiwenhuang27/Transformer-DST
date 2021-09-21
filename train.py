@@ -275,7 +275,7 @@ def main(args):
         enc_optimizer.load_state_dict(enc_recover)
         dec_optimizer.load_state_dict(dec_optimizer)
     
-    # optionally resume from a checkpoint
+    # optionally resume from a checkpoint (file)
     # if args.resume:
     #     if os.path.isfile(args.resume):
     #         print("=> loading checkpoint '{}'".format(args.resume))
@@ -402,8 +402,16 @@ def main(args):
                 sys.stdout.flush()
                 batch_loss = []
                 #####################
-                # PATH = args.save_dir + "/" + str(epoch+1) + "_" + str(step) + ".tar"
+                # PATH = args.save_dir + "/epoch" + str(epoch+1) + "_turn" + str(step) + ".tar" # file
+                # Save 二選一
                 # torch.save(model, PATH)
+                # torch.save({
+                #       'epoch':epoch,
+                #       'state_dict': model.state_dict(),
+                #       'optimizer': optimizer.state_dict(),
+                #       'loss': batch_loss
+                #       # other?
+                #       }, PATH)
                 # print("Save in ", args.save_dir)
                 #####################
 
@@ -427,8 +435,7 @@ def main(args):
                     eval_res_test = model_evaluation(model, test_data_raw, tokenizer, slot_meta, epoch + 1, args.op_code,
                                                      use_full_slot=args.use_full_slot, use_dt_only=args.use_dt_only, no_dial=args.no_dial, use_cls_only=args.use_cls_only, n_gpu=n_gpu)
                     print("### Epoch {:} Test Score : ".format(epoch + 1), eval_res_test)
-        # save model
-        # torch.save(model, save_dir)
+
 
 
 if __name__ == "__main__":
