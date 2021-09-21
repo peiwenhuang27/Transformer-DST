@@ -323,7 +323,7 @@ def main(args):
 
     start_time = time.time()
 
-    for epoch in range(args.n_epochs): # args.start_epoch, 
+    for epoch in range(args.start_epoch, args.n_epochs): # args.start_epoch, 
         batch_loss = []
         model.train()
         for step, batch in enumerate(train_dataloader):
@@ -402,9 +402,9 @@ def main(args):
                 sys.stdout.flush()
                 batch_loss = []
                 #####################
-                # PATH = args.save_dir + "/epoch" + str(epoch+1) + "_turn" + str(step) + ".tar" # file
+                PATH = args.save_dir + "/epoch" + str(epoch+1) + "_turn" + str(step) + ".tar" # file
                 # Save 二選一
-                # torch.save(model, PATH)
+                torch.save(model, PATH)
                 # torch.save({
                 #       'epoch':epoch,
                 #       'state_dict': model.state_dict(),
@@ -412,7 +412,7 @@ def main(args):
                 #       'loss': batch_loss
                 #       # other?
                 #       }, PATH)
-                # print("Save in ", args.save_dir)
+                print("Save in ", args.save_dir)
                 #####################
 
 
