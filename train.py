@@ -274,6 +274,29 @@ def main(args):
         sys.stdout.flush()
         enc_optimizer.load_state_dict(enc_recover)
         dec_optimizer.load_state_dict(dec_optimizer)
+    
+    # optionally resume from a checkpoint
+    # if args.resume:
+    #     if os.path.isfile(args.resume):
+    #         print("=> loading checkpoint '{}'".format(args.resume))
+    #         if args.gpu is None:
+    #             checkpoint = torch.load(args.resume)
+    #         else:
+    #             # Map model to be loaded to specified single gpu.
+    #             loc = 'cuda:{}'.format(args.gpu)
+    #             checkpoint = torch.load(args.resume, map_location=loc)
+    #         args.start_epoch = checkpoint['epoch']
+    #         best_acc1 = checkpoint['best_acc1']
+    #         if args.gpu is not None:
+    #             # best_acc1 may be from a checkpoint from a different GPU
+    #             best_acc1 = best_acc1.to(args.gpu)
+    #         model.load_state_dict(checkpoint['state_dict'])
+    #         optimizer.load_state_dict(checkpoint['optimizer'])
+    #         print("=> loaded checkpoint '{}' (epoch {})"
+    #               .format(args.resume, checkpoint['epoch']))
+    #     else:
+    #         print("=> no checkpoint found at '{}'".format(args.resume))
+
 
     if n_gpu > 1:
         model = torch.nn.DataParallel(model)
@@ -300,7 +323,7 @@ def main(args):
 
     start_time = time.time()
 
-    for epoch in range(args.n_epochs):
+    for epoch in range(args.n_epochs): # args.start_epoch, 
         batch_loss = []
         model.train()
         for step, batch in enumerate(train_dataloader):
@@ -446,6 +469,9 @@ if __name__ == "__main__":
     parser.add_argument("--dec_lr", default=1e-4, type=float)
     parser.add_argument("--n_epochs", default=30, type=int)
     parser.add_argument("--eval_epoch", default=1, type=int)
+    # resume model
+    parser.add_argument('--start-epoch', default=0, type=int, metavar='N', help='manual epoch number (useful on restarts)')
+    parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
     parser.add_argument("--op_code", default="4", type=str)
     parser.add_argument("--slot_token", default="[SLOT]", type=str)
