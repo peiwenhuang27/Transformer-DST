@@ -401,6 +401,12 @@ def main(args):
 
                 sys.stdout.flush()
                 batch_loss = []
+                #####################
+                # PATH = args.save_dir + "/" + str(epoch+1) + "_" + str(step) + ".tar"
+                # torch.save(model, PATH)
+                # print("Save in ", args.save_dir)
+                #####################
+
 
         if args.use_one_optim:
             save(args, epoch + 1, model, optimizer)
