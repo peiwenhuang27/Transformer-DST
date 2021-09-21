@@ -421,6 +421,8 @@ def main(args):
                     eval_res_test = model_evaluation(model, test_data_raw, tokenizer, slot_meta, epoch + 1, args.op_code,
                                                      use_full_slot=args.use_full_slot, use_dt_only=args.use_dt_only, no_dial=args.no_dial, use_cls_only=args.use_cls_only, n_gpu=n_gpu)
                     print("### Epoch {:} Test Score : ".format(epoch + 1), eval_res_test)
+        # save model
+        # torch.save(model, save_dir)
 
 
 if __name__ == "__main__":
