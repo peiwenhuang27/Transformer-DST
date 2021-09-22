@@ -38,7 +38,8 @@ def getDialBState(data):
     sys_transcript.append("")
     turn_id_all = []
     turn_id = 0
-    # request_slots = []
+    if args.op_code == '4':
+        request_slots = []
     # select_slots = []
 
     system_act = [[]]
@@ -51,19 +52,20 @@ def getDialBState(data):
             usr_transcript.append(dialogue)
             turn_id_all.append(turn_id)
             turn_id += 1
-            # request_slots = []
-            # select_slots = []
-            # for aPair in utterance['dialog_act']:
-            #   if aPair[0] == 'Request':
-            #     aSlot = {}
-            #     aSlot['slots'] = [[ aPair[1] + '-' + aPair[2], 'request']]
-            #     aSlot['act'] = 'request'
-            #     request_slots.append(aSlot)
-            #   elif aPair[0] == 'Select':
-            #     aSlot = {}
-            #     aSlot['slots'] = [[ aPair[1] + '-' + aPair[2], aPair[3]]]
-            #     aSlot['act'] = 'select'
-            #     select_slots.append(aSlot)
+            if args.op_code == '4':
+                request_slots = []
+                # select_slots = []
+                for aPair in utterance['dialog_act']:
+                    if aPair[0] == 'Request':
+                        aSlot = {}
+                        aSlot['slots'] = [[ aPair[1] + '-' + aPair[2], 'request']]
+                        aSlot['act'] = 'request'
+                        request_slots.append(aSlot)
+                #   elif aPair[0] == 'Select':
+                #     aSlot = {}
+                #     aSlot['slots'] = [[ aPair[1] + '-' + aPair[2], aPair[3]]]
+                #     aSlot['act'] = 'select'
+                #     select_slots.append(aSlot)
         else:
             belief_state = []
             turn_label = []
@@ -97,8 +99,9 @@ def getDialBState(data):
                         aSlot['act'] = 'inform'
                         belief_state.append(aSlot)
 
-            # belief_state = belief_state + request_slots
-            # belief_state = belief_state + select_slots
+            if args.op_code == "4":
+                belief_state = belief_state + request_slots
+                # belief_state = belief_state + select_slots
 
             # diff between this and last turn (只看增加不看減少)
             if belief_state_all != []:
@@ -161,15 +164,17 @@ def main(args):
     dev_dials = create_dials(data_dev)
 
     
-    with open(os.path.join(args.save_dir, 'train_dials.json'), 'w', encoding='utf-8') as fp:
-        json.dump(train_dials, fp, ensure_ascii=False, indent=4)
-    print(os.path.join(args.save_dir, 'train_dials.json'))
-    with open(os.path.join(args.save_dir, 'test_dials.json'), 'w', encoding='utf-8') as fp:
-        json.dump(test_dials, fp, ensure_ascii=False, indent=4)
-    print(os.path.join(args.save_dir, 'test_dials.json'))
-    with open(os.path.join(args.save_dir, 'dev_dials.json'), 'w', encoding='utf-8') as fp:
-        json.dump(dev_dials, fp, ensure_ascii=False, indent=4)
-    print(os.path.join(args.save_dir, 'dev_dials.json'))
+    if args.op_code == "4":
+        for name in ['train_dials', 'test_dials', 'dev_dials']:
+            with open(os.path.join(args.save_dir, f'{name}_request.json'), 'w', encoding='utf-8') as fp:
+                exec(f'json.dump({name}, fp, ensure_ascii=False, indent=4)')
+            print(os.path.join(args.save_dir, f'{name}_request.json'))
+        
+    else:
+        for name in ['train_dials', 'test_dials', 'dev_dials']:
+            with open(os.path.join(args.save_dir, f'{name}.json'), 'w', encoding='utf-8') as fp:
+                exec(f'json.dump({name}, fp, ensure_ascii=False, indent=4)')
+            print(os.path.join(args.save_dir, f'{name}.json'))
 
 
 
@@ -182,12 +187,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--save_dir", default="./cleanData", type=str)
 
+    parser.add_argument("--op_code", default="3-2", type=str)
+
     args = parser.parse_args()
     main(args)
-
-
-
-    
-
-
-
