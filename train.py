@@ -141,8 +141,13 @@ def main(args):
 
     tokenizer = BertTokenizer(args.vocab_path, do_lower_case=True)
 
-    train_path = os.path.join(args.data_root, "train.pt")
-    op_w_path = os.path.join(args.data_root, "op_weight.npy")
+    train_filename = "train.pt"
+    op_w_filename = "op_weight.npy"
+    if args.op_code in ['4', '5']:
+        train_filename = "train_request.pt"
+        op_w_filename = "op_weight_request.npy"
+    train_path = os.path.join(args.data_root, train_filename)
+    op_w_path = os.path.join(args.data_root, op_w_filename)
 
     if not os.path.exists(train_path):
         train_data_raw, op_weights = prepare_dataset(data_path=args.train_data_path,
@@ -515,6 +520,10 @@ if __name__ == "__main__":
     parser.add_argument('--ngram_size', type=int, default=2)
 
     args = parser.parse_args()
+    if args.op_code in ['4', '5']:
+        args.train_data = 'cleanData/train_dials_request.json'
+        args.test_data = 'cleanData/test_dials_request.json'
+        args.dev_data = 'cleanData/dev_dials_request.json'
     args.train_data_path = os.path.join(args.data_root, args.train_data)
     args.dev_data_path = os.path.join(args.data_root, args.dev_data)
     args.test_data_path = os.path.join(args.data_root, args.test_data)
