@@ -276,26 +276,26 @@ def main(args):
         dec_optimizer.load_state_dict(dec_optimizer)
     
     # optionally resume from a checkpoint (file)
-    # if args.resume:
-    #     if os.path.isfile(args.resume):
-    #         print("=> loading checkpoint '{}'".format(args.resume))
-    #         if args.gpu is None:
-    #             checkpoint = torch.load(args.resume)
-    #         else:
-    #             # Map model to be loaded to specified single gpu.
-    #             loc = 'cuda:{}'.format(args.gpu)
-    #             checkpoint = torch.load(args.resume, map_location=loc)
-    #         args.start_epoch = checkpoint['epoch']
-    #         best_acc1 = checkpoint['best_acc1']
-    #         if args.gpu is not None:
-    #             # best_acc1 may be from a checkpoint from a different GPU
-    #             best_acc1 = best_acc1.to(args.gpu)
-    #         model.load_state_dict(checkpoint['state_dict'])
-    #         optimizer.load_state_dict(checkpoint['optimizer'])
-    #         print("=> loaded checkpoint '{}' (epoch {})"
-    #               .format(args.resume, checkpoint['epoch']))
-    #     else:
-    #         print("=> no checkpoint found at '{}'".format(args.resume))
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print("=> loading checkpoint '{}'".format(args.resume))
+            # if args.gpu is None:
+            checkpoint = torch.load(args.resume)
+            # else:
+                # Map model to be loaded to specified single gpu.
+                # loc = 'cuda:{}'.format(args.gpu)
+                # checkpoint = torch.load(args.resume, map_location=loc)
+            args.start_epoch = checkpoint['epoch']
+            # best_acc1 = checkpoint['best_acc1']
+            # if args.gpu is not None:
+                # best_acc1 may be from a checkpoint from a different GPU
+                # best_acc1 = best_acc1.to(args.gpu)
+            model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.resume, checkpoint['epoch']))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
 
 
     if n_gpu > 1:
@@ -401,19 +401,17 @@ def main(args):
 
                 sys.stdout.flush()
                 batch_loss = []
-                #####################
-                PATH = args.save_dir + "/epoch" + str(epoch+1) + "_turn" + str(step) + ".tar" # file
-                # Save 二選一
-                torch.save(model, PATH)
-                # torch.save({
-                #       'epoch':epoch,
-                #       'state_dict': model.state_dict(),
-                #       'optimizer': optimizer.state_dict(),
-                #       'loss': batch_loss
-                #       # other?
-                #       }, PATH)
-                print("Save in ", args.save_dir)
-                #####################
+        #####################
+        PATH = args.save_dir + "/epoch" + str(epoch+1) + "_turn" + str(step) + ".tar" # file
+        torch.save({
+                'epoch':epoch,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'loss': batch_loss
+                # other?
+                }, PATH)
+        print("Save in ", args.save_dir)
+        #####################
 
 
         if args.use_one_optim:
