@@ -165,15 +165,15 @@ def main(args):
 
     
     if args.op_code == "4":
-        for name in ['train_dials_request', 'test_dials_request', 'dev_dials_request']:
-            with open(os.path.join(args.save_dir, f'{name}.json'), 'w', encoding='utf-8') as fp:
-                json.dump(f'{name}', fp, ensure_ascii=False, indent=4)
-            print(os.path.join(args.save_dir, f'{name}.json'))
+        for name in ['train_dials', 'test_dials', 'dev_dials']:
+            with open(os.path.join(args.save_dir, f'{name}_request.json'), 'w', encoding='utf-8') as fp:
+                exec(f'json.dump({name}, fp, ensure_ascii=False, indent=4)')
+            print(os.path.join(args.save_dir, f'{name}_request.json'))
         
     else:
         for name in ['train_dials', 'test_dials', 'dev_dials']:
             with open(os.path.join(args.save_dir, f'{name}.json'), 'w', encoding='utf-8') as fp:
-                json.dump(f'{name}', fp, ensure_ascii=False, indent=4)
+                exec(f'json.dump({name}, fp, ensure_ascii=False, indent=4)')
             print(os.path.join(args.save_dir, f'{name}.json'))
 
 
