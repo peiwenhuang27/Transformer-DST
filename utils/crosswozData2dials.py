@@ -161,15 +161,17 @@ def main(args):
     dev_dials = create_dials(data_dev)
 
     
-    with open(os.path.join(args.save_dir, 'train_dials.json'), 'w', encoding='utf-8') as fp:
-        json.dump(train_dials, fp, ensure_ascii=False, indent=4)
-    print(os.path.join(args.save_dir, 'train_dials.json'))
-    with open(os.path.join(args.save_dir, 'test_dials.json'), 'w', encoding='utf-8') as fp:
-        json.dump(test_dials, fp, ensure_ascii=False, indent=4)
-    print(os.path.join(args.save_dir, 'test_dials.json'))
-    with open(os.path.join(args.save_dir, 'dev_dials.json'), 'w', encoding='utf-8') as fp:
-        json.dump(dev_dials, fp, ensure_ascii=False, indent=4)
-    print(os.path.join(args.save_dir, 'dev_dials.json'))
+    if args.op_code == "4":
+        for name in ['train_dials', 'test_dials', 'dev_dials']:
+            with open(os.path.join(args.save_dir, f'{name}_request.json'), 'w', encoding='utf-8') as fp:
+                json.dump(name, fp, ensure_ascii=False, indent=4)
+            print(os.path.join(args.save_dir, f'{name}_request.json'))
+        
+    else:
+        for name in ['train_dials', 'test_dials', 'dev_dials']:
+            with open(os.path.join(args.save_dir, f'{name}.json'), 'w', encoding='utf-8') as fp:
+                json.dump(name, fp, ensure_ascii=False, indent=4)
+            print(os.path.join(args.save_dir, f'{name}.json'))
 
 
 
@@ -182,12 +184,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--save_dir", default="./cleanData", type=str)
 
+    parser.add_argument("--op_code", default="3-2", type=str)
+
     args = parser.parse_args()
     main(args)
-
-
-
-    
-
-
-
