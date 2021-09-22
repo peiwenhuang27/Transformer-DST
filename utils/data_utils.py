@@ -580,7 +580,7 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
     input_id_p_max_len = max([f.input_id_p_len for f in batch])
     input_id_g_max_len = max([f.input_id_g_max_len for f in batch])
     gen_max_len = max([f.gen_max_len for f in batch])
-    domain_len = len(batch[0].op2id)
+    domain_len = len(EXPERIMENT_DOMAINS)
 
     # TODO: Predictor
     input_ids_p = torch.tensor([do_pad(f.input_id_p, input_id_p_max_len, pad_id) for f in batch], dtype=torch.long)
@@ -589,7 +589,7 @@ def wrap_into_tensor(batch, pad_id=0, slot_id=1, use_teacher=True, use_full_slot
 
     op_ids = torch.tensor([f.op_ids for f in batch], dtype=torch.long)
     if not exclude_domain:
-        domain_ids = torch.tensor([convert_to_one_hot(f.domain_id, domain_len) for f in batch], dtype=torch.long)
+        domain_ids = torch.tensor([convert_to_one_hot(f.domain_id, domain_len) for f in batch], dtype=torch.float)
 
     slot_position = []
     slot_to_update = []  # TODO: v2 special, a nested list
