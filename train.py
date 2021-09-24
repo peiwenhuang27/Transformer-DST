@@ -316,8 +316,8 @@ def main(args):
 
     if args.use_class_weight:
         print("### class weights for ops: {}".format(op_weights))
-        op_weights = torch.from_numpy(op_weights).type(torch.FloatTensor)
-        op_weights = op_weights.cuda()
+        op_weights = torch.from_numpy(op_weights).float()
+        op_weights = op_weights.to(device)
         loss_s_fnc = nn.CrossEntropyLoss(weight=op_weights)
     else:
         print("### no class weights applied")

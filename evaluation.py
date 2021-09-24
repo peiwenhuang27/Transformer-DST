@@ -36,6 +36,8 @@ def main(args):
     slot_meta = getSlotMeta()
     tokenizer = BertTokenizer(args.vocab_path, do_lower_case=True)
     test_path = os.path.join(args.data_root, "test.pt")
+    if args.op_code in ['4', '5']:
+        test_path = os.path.join(args.data_root, "test_request.pt")
     if not os.path.exists(test_path):
         data = prepare_dataset(os.path.join(args.data_root, args.test_data), tokenizer, slot_meta, 
                                args.n_history, args.max_seq_length, args.op_code)
@@ -121,7 +123,7 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
         if is_gt_p_state is False:
             i.last_dialog_state = deepcopy(last_dialog_state)
             i.make_instance(tokenizer, word_dropout=0.)
-        else:  # ground-truth previous dialogue state
+        else:  # ground-truth previous dialogue state as last_dialog_state
             last_dialog_state = deepcopy(i.gold_p_state)
             i.last_dialog_state = deepcopy(last_dialog_state)
             i.make_instance(tokenizer, word_dropout=0.)
@@ -132,13 +134,13 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
             # print(k)  # e.g. ['attraction', 'area']
             id2ds[id] = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(' '.join(k + ['-'])))
 
+        # do not use input_ids_g, ... -> why?
         tensor_list = wrap_into_tensor([i], pad_id=tokenizer.convert_tokens_to_ids(['[PAD]'])[0],
                                        slot_id=tokenizer.convert_tokens_to_ids(['[SLOT]'])[0])[:4]
         tensor_list = [t.to(device) for t in tensor_list]
         input_ids_p, segment_ids_p, input_mask_p, state_position_ids = tensor_list
 
-        d_gold_op, _, _ = make_turn_label(slot_meta, last_dialog_state, i.gold_state,
-                                          tokenizer, op_code, dynamic=True)
+        d_gold_op, _, _ = make_turn_label(slot_meta, last_dialog_state, i.gold_state, tokenizer, op_code, dynamic=True)
         gold_op_ids = torch.LongTensor([d_gold_op]).to(device)
 
         start = time.perf_counter()
@@ -159,6 +161,7 @@ def model_evaluation(model, test_data, tokenizer, slot_meta, epoch, op_code='4',
                                                gen_max_len=MAX_LENGTH, use_full_slot=use_full_slot, use_dt_only=use_dt_only, diag_1_len=i.diag_1_len,
                                                       no_dial=no_dial, use_cls_only=use_cls_only, i_dslen_map=i.i_dslen_map)
             else:
+                # op_ids if not None: ground truth op labels, used in decoder to check slots to update
                 d, s, generated = model.output(input_ids_p, segment_ids_p, input_mask_p,
                                                state_position_ids, i.diag_len, op_ids=gold_op_inputs, gen_max_len=MAX_LENGTH,
                                                use_full_slot=use_full_slot, use_dt_only=use_dt_only, diag_1_len=i.diag_1_len,
