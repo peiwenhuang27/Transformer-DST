@@ -325,7 +325,7 @@ def main(args):
         batch_loss = []
         model.train()
         for step, batch in enumerate(train_dataloader):
-            if step < args.start_step and step != 0:
+            if step < args.start_step and args.start_step != 0:
                 continue
 
             batch = [b.to(device) if (not isinstance(b, int)) and (not isinstance(b, dict) and (not isinstance(b, list)) and (not isinstance(b, np.ndarray))) else b for b in batch]
@@ -407,7 +407,6 @@ def main(args):
                         'epoch':epoch,
                         'state_dict': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
-                        'loss': batch_loss,
                         'step': step + 1
                         # other?
                         }, PATH)
