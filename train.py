@@ -404,7 +404,7 @@ def main(args):
                 #####################  save by step
                 PATH = args.save_dir + "/epoch" + str(epoch+1) + "_step" + str(step+1) + ".tar" # file
                 torch.save({
-                        'epoch':epoch + 1,
+                        'epoch':epoch,
                         'state_dict': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
                         'loss': batch_loss,
