@@ -41,6 +41,7 @@ def main(args):
     if not os.path.exists(test_path):
         data = prepare_dataset(os.path.join(args.data_root, args.test_data), tokenizer, slot_meta, 
                                args.n_history, args.max_seq_length, args.op_code)
+        torch.save(data, test_path)
     else:
         data = torch.load(test_path)
 
