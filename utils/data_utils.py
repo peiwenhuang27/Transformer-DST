@@ -108,7 +108,7 @@ def postprocessing(slot_meta, ops, last_dialog_state,
             gen = ''.join(gen).replace(' ##', '')
             gid += 1
             gen = gen.replace(' : ', ':').replace('##', '')
-            if gold_gen and gold_gen.get(st) and gold_gen[st] not in ['request']: ####
+            if gold_gen and gold_gen.get(st) and gold_gen[st] not in ['dontcare']: ####
                 gen = gold_gen[st]
 
             if gen == '[NULL]' and last_dialog_state.get(st) and not OP_SET[op_code].get('delete') is not None:
