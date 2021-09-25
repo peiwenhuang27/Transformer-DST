@@ -25,7 +25,7 @@ OP_SET = {
 
 def make_turn_label(slot_meta, last_dialog_state, turn_dialog_state,
                     tokenizer, op_code='4', dynamic=False):
-    if dynamic:
+    if dynamic: # convert list to dict
         gold_state = turn_dialog_state
         turn_dialog_state = {}
         for x in gold_state:
@@ -108,7 +108,7 @@ def postprocessing(slot_meta, ops, last_dialog_state,
             gen = ''.join(gen).replace(' ##', '')
             gid += 1
             gen = gen.replace(' : ', ':').replace('##', '')
-            if gold_gen and gold_gen.get(st) and gold_gen[st] not in ['request']:
+            if gold_gen and gold_gen.get(st) and gold_gen[st] not in ['request']: ####
                 gen = gold_gen[st]
 
             if gen == '[NULL]' and last_dialog_state.get(st) and not OP_SET[op_code].get('delete') is not None:
