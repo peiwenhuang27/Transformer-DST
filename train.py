@@ -286,6 +286,7 @@ def main(args):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
+            args.start_step = checkpoint['step']
             # best_acc1 = checkpoint['best_acc1']
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
@@ -324,6 +325,8 @@ def main(args):
         batch_loss = []
         model.train()
         for step, batch in enumerate(train_dataloader):
+            if step < args.start_step and step != 0:
+                continue
 
             batch = [b.to(device) if (not isinstance(b, int)) and (not isinstance(b, dict) and (not isinstance(b, list)) and (not isinstance(b, np.ndarray))) else b for b in batch]
 
@@ -398,16 +401,29 @@ def main(args):
 
                 sys.stdout.flush()
                 batch_loss = []
-        #####################
-        PATH = args.save_dir + "/epoch" + str(epoch+1) + ".tar" # file
-        torch.save({
-                'epoch':epoch + 1,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'loss': batch_loss
-                # other?
-                }, PATH)
-        print("Save in ", args.save_dir)
+                #####################  save by step
+                PATH = args.save_dir + "/epoch" + str(epoch+1) + "_step" + str(step+1) + ".tar" # file
+                torch.save({
+                        'epoch':epoch + 1,
+                        'state_dict': model.state_dict(),
+                        'optimizer': optimizer.state_dict(),
+                        'loss': batch_loss,
+                        'step': step + 1
+                        # other?
+                        }, PATH)
+                print("Save in ", args.save_dir)
+                #####################
+        #####################  save by epoch
+        # PATH = args.save_dir + "/epoch" + str(epoch+1) + ".tar" # file
+        # torch.save({
+        #         'epoch':epoch + 1,
+        #         'state_dict': model.state_dict(),
+        #         'optimizer': optimizer.state_dict(),
+        #         'loss': batch_loss
+        #         'step': step
+        #         # other?
+        #         }, PATH)
+        # print("Save in ", args.save_dir)
         #####################
 
 
@@ -481,6 +497,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval_epoch", default=1, type=int)
     # resume model
     parser.add_argument('--start-epoch', default=0, type=int, metavar='N', help='manual epoch number (useful on restarts)')
+    parser.add_argument('--start-step', default=0, type=int, metavar='N', help='manual step number (useful on restarts)')
     parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 
     parser.add_argument("--op_code", default="4", type=str)
