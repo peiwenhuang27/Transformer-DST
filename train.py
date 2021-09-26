@@ -291,7 +291,7 @@ def main(args):
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+                  .format(args.resume, checkpoint['epoch'] + 1))
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
@@ -327,6 +327,7 @@ def main(args):
         for step, batch in enumerate(train_dataloader):
             if step < args.start_step and args.start_step != 0:
                 continue
+            args.start_step = 0
 
             batch = [b.to(device) if (not isinstance(b, int)) and (not isinstance(b, dict) and (not isinstance(b, list)) and (not isinstance(b, np.ndarray))) else b for b in batch]
 
