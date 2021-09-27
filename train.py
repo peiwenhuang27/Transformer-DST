@@ -289,7 +289,7 @@ def main(args):
         sys.stdout.flush()
         enc_optimizer.load_state_dict(enc_recover)
         dec_optimizer.load_state_dict(dec_optimizer)
-    
+        
     # optionally resume from a checkpoint (file)
     if args.resume:
         if os.path.isfile(args.resume):
@@ -300,8 +300,8 @@ def main(args):
             # best_acc1 = checkpoint['best_acc1']
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch'] + 1))
+            print("=> loaded checkpoint '{}' (epoch {}, step {})"
+                  .format(args.resume, checkpoint['epoch'] + 1, checkpoint['step']))
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
