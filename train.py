@@ -425,16 +425,16 @@ def main(args):
                 print("Save in ", args.save_dir)
                 #####################
         #####################  save by epoch
-        # PATH = args.save_dir + "/epoch" + str(epoch+1) + ".tar" # file
-        # torch.save({
-        #         'epoch':epoch + 1,
-        #         'state_dict': model.state_dict(),
-        #         'optimizer': optimizer.state_dict(),
-        #         'loss': batch_loss,
-        #         'step': 0
-        #         # other?
-        #         }, PATH)
-        # print("Save in ", args.save_dir)
+        PATH = args.save_dir + "/epoch" + str(epoch+1) + ".tar" # file
+        torch.save({
+                'epoch':epoch + 1,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'loss': batch_loss,
+                'step': 0
+                # other?
+                }, PATH)
+        print("Save in ", args.save_dir)
         #####################
 
 
