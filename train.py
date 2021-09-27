@@ -76,16 +76,17 @@ def main(args):
     assert args.use_one_optim is True
 
     wandb.login()
+    name = args.save_dir.split('/')[-1]
     if args.wandb_run_id is not None:
         run = wandb.init(project="Transformer-DST", 
-                        name=args.save_dir,
+                        name=name,
                         entity="weilao_research",
                         job_type="model training",
                         resume=args.wandb_run_id,
                         config=args)
     else:
         run = wandb.init(project="Transformer-DST", 
-                        name=args.save_dir,
+                        name=name,
                         entity="weilao_research",
                         job_type="model training",
                         config=args)
