@@ -76,10 +76,17 @@ def main(args):
     assert args.use_one_optim is True
 
     wandb.login()
-    run = wandb.init(project="Transformer-DST", 
-                     entity="weilao_research",
-                     job_type="model training",
-                     config=args)
+    if args.wandb_run_id is not None:
+        run = wandb.init(project="Transformer-DST", 
+                        entity="weilao_research",
+                        job_type="model training",
+                        resume=args.wandb_run_id,
+                        config=args)
+    else:
+        run = wandb.init(project="Transformer-DST", 
+                        entity="weilao_research",
+                        job_type="model training",
+                        config=args)
 
     if args.cuda_idx is not None:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_idx
@@ -402,6 +409,8 @@ def main(args):
 
                 sys.stdout.flush()
                 batch_loss = []
+
+            if step % 1000 == 0:
                 #####################  save by step
                 PATH = args.save_dir + "/epoch" + str(epoch+1) + "_step" + str(step+1) + ".tar" # file
                 torch.save({
@@ -419,8 +428,8 @@ def main(args):
         #         'epoch':epoch + 1,
         #         'state_dict': model.state_dict(),
         #         'optimizer': optimizer.state_dict(),
-        #         'loss': batch_loss
-        #         'step': step
+        #         'loss': batch_loss,
+        #         'step': 0
         #         # other?
         #         }, PATH)
         # print("Save in ", args.save_dir)
@@ -499,6 +508,7 @@ if __name__ == "__main__":
     parser.add_argument('--start-epoch', default=0, type=int, metavar='N', help='manual epoch number (useful on restarts)')
     parser.add_argument('--start-step', default=0, type=int, metavar='N', help='manual step number (useful on restarts)')
     parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+    parser.add_argument('--wandb_run_id', default=None, type=str, help='run ID of the wandb run to resume')
 
     parser.add_argument("--op_code", default="4", type=str)
     parser.add_argument("--slot_token", default="[SLOT]", type=str)
