@@ -139,7 +139,7 @@ def make_slot_meta(ontology):
 
 
 def prepare_dataset(data_path, tokenizer, slot_meta,
-                    n_history, max_seq_length, diag_level=False, op_code='4', training=False, mod_cw=False):
+                    n_history, max_seq_length, diag_level=False, op_code='4', training=False):
     dials = json.load(open(data_path))
     data = []
     domain_counter = {}
@@ -226,9 +226,6 @@ def prepare_dataset(data_path, tokenizer, slot_meta,
         classes = np.arange(len(op2id))
         op_class_weight = np.asarray([op2id[op] for op in op_class_weight])
         op_weights = compute_class_weight(class_weight='balanced', classes=classes, y=op_class_weight)
-        if mod_cw:
-            recall = [(2791 / 3746), (54627 / 105830), (250 / 560)] ###
-            op_weights = [op_weights[i] * recall[i] for i in range(classes)]
         print('op_weights: ', op_weights)
         return data, op_weights
     return data

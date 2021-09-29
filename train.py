@@ -152,7 +152,7 @@ def main(args):
     tokenizer = BertTokenizer(args.vocab_path, do_lower_case=True)
 
     train_filename = "train.pt"
-    op_w_filename = "op_weight.npy" if not args.modified_class_weight else "op_weight_mod.npy"
+    op_w_filename = "op_weight.npy"
     if args.op_code in ['4', '5']:
         train_filename = "train_request.pt"
         op_w_filename = "op_weight_request.npy"
@@ -165,13 +165,16 @@ def main(args):
                                          slot_meta=slot_meta,
                                          n_history=args.n_history,
                                          max_seq_length=args.max_seq_length,
-                                         op_code=args.op_code, training=True, mod_cw=args.modified_class_weight)
+                                         op_code=args.op_code, training=True)
 
         torch.save(train_data_raw, train_path)
         np.save(op_w_path, op_weights)
     else:
         train_data_raw = torch.load(train_path)
-        op_weights = np.load(op_w_path)
+        if args.use_class_weight:
+            op_weights = np.load(op_w_path)
+            recall = [(2791 / 3746), (54627 / 105830), (250 / 560)]
+            op_weights = np.array([op_weights[i] / recall[i] for i in range(len(op_weights))])
 
     train_data = CrossWozDataset(train_data_raw,
                                  tokenizer,
