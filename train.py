@@ -152,7 +152,7 @@ def main(args):
     tokenizer = BertTokenizer(args.vocab_path, do_lower_case=True)
 
     train_filename = "train.pt"
-    op_w_filename = "op_weight.npy"
+    op_w_filename = "op_weight.npy" if not args.modified_class_weight else "op_weight_mod.npy"
     if args.op_code in ['4', '5']:
         train_filename = "train_request.pt"
         op_w_filename = "op_weight_request.npy"
@@ -165,7 +165,7 @@ def main(args):
                                          slot_meta=slot_meta,
                                          n_history=args.n_history,
                                          max_seq_length=args.max_seq_length,
-                                         op_code=args.op_code, training=True)
+                                         op_code=args.op_code, training=True, mod_cw=args.modified_class_weight)
 
         torch.save(train_data_raw, train_path)
         np.save(op_w_path, op_weights)
@@ -497,6 +497,7 @@ if __name__ == "__main__":
     parser.add_argument("--bert_ckpt_path", default='./assets/bert-base-chinese-pytorch_model.bin', type=str)
     parser.add_argument("--save_dir", default='outputs', type=str)
     parser.add_argument("--use_class_weight", default=False, action='store_true')
+    parser.add_argument("--modified_class_weight", default=False, action='store_true')
 
     parser.add_argument("--random_seed", default=42, type=int)
     parser.add_argument("--num_workers", default=0, type=int)
