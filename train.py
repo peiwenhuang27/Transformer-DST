@@ -20,7 +20,13 @@ import json
 import time
 import wandb
 
+RECALL = [(2791 / 3746), (54627 / 105830), (250 / 560)]
 
+def smooth_op_weight(op_weights, c=0.8):
+    # weight / (recall + C)
+    mod_op_weights = np.array([op_weights[i] / (RECALL[i] + c) for i in range(len(op_weights))])
+
+    return mod_op_weights
 
 def masked_cross_entropy_for_value(logits, target, pad_idx=0):
     mask = target.ne(pad_idx)
@@ -173,8 +179,9 @@ def main(args):
         train_data_raw = torch.load(train_path)
         if args.use_class_weight:
             op_weights = np.load(op_w_path)
-            recall = [(2791 / 3746), (54627 / 105830), (250 / 560)]
-            op_weights = np.array([op_weights[i] / recall[i] for i in range(len(op_weights))])
+            if args.modified_class_weight:
+                op_weights = smooth_op_weight(op_weights)
+            
 
     train_data = CrossWozDataset(train_data_raw,
                                  tokenizer,
