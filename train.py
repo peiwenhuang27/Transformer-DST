@@ -20,11 +20,16 @@ import json
 import time
 import wandb
 
-RECALL = [(2791 / 3746), (54627 / 105830), (250 / 560)]
+RECALL_SET = {
+    '3-2': [(2791 / 3746), (54627 / 105830), (250 / 560)],
+    '4': [(1083 / 2849), (2945 / 3829), (1360 / 2576), (14054 / 100934)]
+}
+ 
 
-def smooth_op_weight(op_weights, c=0.8):
+def smooth_op_weight(op_weights, op_code, c=0.8):
     # weight / (recall + C)
-    mod_op_weights = np.array([op_weights[i] / (RECALL[i] + c) for i in range(len(op_weights))])
+    recall = RECALL_SET[op_code]
+    mod_op_weights = np.array([op_weights[i] / (recall[i] + c) for i in range(len(op_weights))])
 
     return mod_op_weights
 
@@ -180,7 +185,7 @@ def main(args):
         if args.use_class_weight:
             op_weights = np.load(op_w_path)
             if args.modified_class_weight:
-                op_weights = smooth_op_weight(op_weights)
+                op_weights = smooth_op_weight(op_weights, args.op_code)
             
 
     train_data = CrossWozDataset(train_data_raw,
